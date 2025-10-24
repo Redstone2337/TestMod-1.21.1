@@ -1,0 +1,128 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+    id 'net.neoforged.moddev' version '2.0.115'
+}
+
+version = mod_version
+group = maven_group
+
+base {
+    archivesName = "${rootProject.archives_name}-neoforge"
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(21)
+    withSourcesJar()
+}
+
+neoForge {
+    version = rootProject.neo_version
+
+    parchment {
+        mappingsVersion = rootProject.parchment_mappings_version
+        minecraftVersion = rootProject.parchment_minecraft_version
+    }
+
+    runs {
+        client {
+            client()
+            systemProperty 'neoforge.enabledGameTestNamespaces', rootProject.mod_id
+        }
+
+        server {
+            server()
+            programArgument '--nogui'
+            systemProperty 'neoforge.enabledGameTestNamespaces', rootProject.mod_id
+        }
+
+        gameTestServer {
+            type = "gameTestServer"
+            systemProperty 'neoforge.enabledGameTestNamespaces', rootProject.mod_id
+        }
+
+        data {
+            data()
+            // 使用官方模板的确切语法
+            programArguments.addAll '--mod', rootProject.mod_id, '--all', '--output', file('src/generated/resources/').getAbsolutePath(), '--existing', file('src/main/resources/').getAbsolutePath()
+        }
+
+        configureEach {
+            systemProperty 'forge.logging.markers', 'REGISTRIES'
+            logLevel = org.slf4j.event.Level.DEBUG
+        }
+    }
+
+    mods {
+        "${rootProject.mod_id}" {
+            sourceSet(sourceSets.main)
+        }
+    }
+}
+
+repositories {
+    // 添加其他仓库
+    maven {
+        name = 'NeoForge'
+        url = 'https://maven.neoforged.net/releases'
+    }
+}
+
+// 设置localRuntime配置
+configurations {
+    runtimeClasspath.extendsFrom localRuntime
+}
+
+dependencies {
+    //implementation "net.neoforged:neoforge:${rootProject.neo_version}"
+    implementation project(":common")
+}
+
+sourceSets.main.resources {
+    srcDir 'src/generated/resources'
+}
+
+tasks.register("generateModMetadata", ProcessResources) {
+    var replaceProperties = [
+            minecraft_version: rootProject.minecraft_version,
+            minecraft_version_range: rootProject.minecraft_version_range,
+            neo_version: rootProject.neo_version,
+            loader_version_range: rootProject.loader_version_range,
+            mod_id: rootProject.mod_id,
+            mod_name: rootProject.mod_name,
+            mod_license: rootProject.mod_license,
+            mod_version: rootProject.mod_version,
+            mod_authors: rootProject.mod_authors,
+            mod_description: rootProject.mod_description
+    ]
+    inputs.properties replaceProperties
+    expand replaceProperties
+    from "src/main/templates"
+    into "build/generated/sources/modMetadata"
+}
+
+sourceSets.main.resources.srcDir tasks.generateModMetadata
+neoForge.ideSyncTask tasks.generateModMetadata
+
+// 处理资源文件 - 不再排除通用的mixins配置文件
+processResources {
+    // 不再排除通用的mixins配置文件，因为我们要在通用JAR中使用特定平台的配置
+    // 而是在构建通用JAR时进行智能合并
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+tasks.named('compileJava') {
+    dependsOn(':common:compileJava')
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            artifactId = base.archivesName.get()
+            from components.java
+        }
+    }
+}

@@ -1,0 +1,180 @@
+import org.gradle.plugins.ide.eclipse.model.SourceFolder
+
+plugins {
+    id 'fabric-loom' version "${loom_version}"
+    id 'maven-publish'
+    id 'idea'
+}
+
+version = mod_version
+group = maven_group
+
+base {
+    archivesName = "${rootProject.archives_name}-fabric"
+}
+
+repositories {
+    // 添加其他仓库
+}
+
+loom {
+    runs {
+        client {
+            client()
+            configName = "Fabric Client"
+            ideConfigGenerated(true)
+            // 完全移除任何运行目录配置，使用Loom默认设置
+        }
+        server {
+            server()
+            configName = "Fabric Server"
+            ideConfigGenerated(true)
+            // 完全移除任何运行目录配置，使用Loom默认设置
+        }
+        // 添加数据生成运行配置
+        datagenClient {
+            inherit client
+            name "Data Generation"
+            vmArg "-Dfabric-api.datagen"
+            vmArg "-Dfabric-api.datagen.output-dir=${file("src/main/generated")}"
+            vmArg "-Dfabric-api.datagen.modid=${mod_id}"
+
+            // 设置运行目录
+            runDir "build/datagen"
+        }
+    }
+
+    // 配置数据生成源集
+    mods {
+        "${mod_id}" {
+            sourceSet sourceSets.main
+        }
+        // 为数据生成创建独立的源集（可选）
+        datagen {
+            sourceSet sourceSets.main
+        }
+    }
+
+    // 配置mixins
+    mixin {
+        // 使用通用mixins配置文件
+        defaultRefmapName = "${mod_id}.refmap.json"
+    }
+}
+
+// 创建数据生成源集（如果需要）
+sourceSets {
+    main {
+        resources {
+            srcDirs += [
+                    'src/main/generated'
+            ]
+        }
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${rootProject.minecraft_version}"
+    mappings "net.fabricmc:yarn:${rootProject.yarn_mappings}:v2"
+
+    modImplementation "net.fabricmc:fabric-loader:${rootProject.fabric_loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${rootProject.fabric_api_version}"
+
+    implementation project(":common")
+
+    // 数据生成依赖（如果需要特定依赖）
+    // datagenImplementation "net.fabricmc.fabric-api:fabric-api:${rootProject.fabric_api_version}"
+}
+
+processResources {
+    inputs.property "version", project.version
+
+    filesMatching("fabric.mod.json") {
+        expand(
+                'version': rootProject.version,
+                'mod_id': rootProject.mod_id,
+                'mod_name': rootProject.mod_name,
+                'mod_license': rootProject.mod_license,
+                'mod_authors': rootProject.mod_authors,
+                'mod_description': rootProject.mod_description,
+                'minecraft_version': rootProject.minecraft_version,
+                'loader_version': rootProject.fabric_loader_version
+        )
+    }
+
+    // 不再排除通用的mixins配置文件，因为我们要在通用JAR中使用特定平台的配置
+    // 而是在构建通用JAR时进行智能合并
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.release = 21
+}
+
+java {
+    withSourcesJar()
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+tasks.named('compileJava') {
+    dependsOn(':common:compileJava')
+}
+
+// 数据生成相关任务
+tasks.register('generateData') {
+    group = 'fabric'
+    description = 'Runs the Fabric data generator'
+
+    dependsOn 'runDatagenClient'
+
+    doLast {
+        println "数据生成完成！输出目录: ${file("src/main/generated")}"
+    }
+}
+
+// 清理生成的数据
+tasks.register('cleanGeneratedData', Delete) {
+    group = 'fabric'
+    description = 'Cleans generated data files'
+
+    delete file("src/main/generated")
+}
+
+// 在清理任务中包含生成的数据清理
+tasks.named('clean') {
+    dependsOn 'cleanGeneratedData'
+}
+
+// 在构建前确保数据已生成（可选）
+// tasks.named('build') {
+//     dependsOn 'generateData'
+// }
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            artifactId = base.archivesName.get()
+            from components.java
+        }
+    }
+}
+
+// 配置IDE
+idea {
+    module {
+        // 将生成的目录标记为生成的源根
+        generatedSourceDirs += file('src/main/generated')
+    }
+}
+
+eclipse {
+    classpath {
+        // 将生成的目录包含在类路径中
+        file {
+            whenMerged {
+                def generated = new SourceFolder('src/main/generated', null)
+                entries += generated
+            }
+        }
+    }
+}

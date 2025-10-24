@@ -1,0 +1,57 @@
+plugins {
+    id 'java'
+    id 'maven-publish'
+}
+
+base {
+    archivesName = "${rootProject.archives_name}-common"
+}
+
+dependencies {
+    /*
+    implementation "com.mojang:minecraft:${rootProject.minecraft_version}"
+    mappings "net.fabricmc:yarn:${rootProject.yarn_mappings}:v2"
+    */
+
+    implementation "org.slf4j:slf4j-api:2.0.9"
+
+    // Fabric Loader for Environment annotations
+    //implementation "net.fabricmc:fabric-loader:${rootProject.fabric_loader_version}"
+
+    implementation "net.neoforged:neoforge:${rootProject.neo_version}"
+}
+
+processResources {
+    inputs.property "version", project.version
+
+    filesMatching(['*.json', '*.toml']) {
+        expand(
+                'version': rootProject.version,
+                'mod_id': rootProject.mod_id,
+                'mod_name': rootProject.mod_name,
+                'mod_license': rootProject.mod_license,
+                'mod_authors': rootProject.mod_authors,
+                'mod_description': rootProject.mod_description
+        )
+    }
+
+    // 确保通用的mixins配置文件被包含
+    include "${rootProject.mod_id}.mixins.json"
+}
+
+tasks.register('commonSourcesJar', Jar) {
+    dependsOn classes
+    archiveBaseName = "${rootProject.archives_name}-common"
+    archiveClassifier = 'sources'
+    from sourceSets.main.allSource
+}
+
+publishing {
+    publications {
+        mavenCommon(MavenPublication) {
+            artifactId = "${rootProject.archives_name}-common"
+            from components.java
+            artifact commonSourcesJar
+        }
+    }
+}
