@@ -8,6 +8,7 @@ import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
 import net.redstone233.tmb.annotation.NeoForged;
 import net.redstone233.tmb.core.TestMod;
+import net.redstone233.tmb.neoforge.item.custom.BlazingFlameSwordItem;
 import net.redstone233.tmb.neoforge.item.custom.IceFreezeSwordItem;
 
 
@@ -21,6 +22,14 @@ public class ModItems {
             new Item.Properties()
                     .durability(3000000)
     ));
+
+    public static final DeferredItem<BlazingFlameSwordItem> BLAZING_FLAME_SWORD = ITEMS.register("blazing_flame_sword",
+            () -> new BlazingFlameSwordItem(
+                    Tiers.NETHERITE,
+                    new Item.Properties()
+                            .durability(3000000)
+            ));
+
 
     public static void register(IEventBus eventBus) {
         ITEMS.register(eventBus);
