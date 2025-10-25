@@ -1,0 +1,10 @@
+{
+  "category.tmb": "Test Mod",
+  "item.tmb.blazing_flame_sword": "Blazing Flame Sword",
+  "item.tmb.ice_freeze_sword": "Ice Freeze Sword",
+  "itemGroup.tmb.mod_items": "Test Mod | Customization Items",
+  "key.tmb.use_ability": "Use Ability For Sword",
+  "key.use_ability.item": "%s",
+  "tooltip.ability_sword.display1": "Hold [",
+  "tooltip.ability_sword.display2": " ] for Ability to use"
+}

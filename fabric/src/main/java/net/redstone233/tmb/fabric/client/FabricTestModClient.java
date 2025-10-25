@@ -5,6 +5,7 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.redstone233.tmb.annotation.Platform;
 import net.redstone233.tmb.fabric.FabricTestMod;
+import net.redstone233.tmb.fabric.keys.ModKeys;
 
 /**
  * Fabric客户端处理器
@@ -22,9 +23,13 @@ public class FabricTestModClient implements ClientModInitializer {
     private void setupFabricClientEvents() {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             // Fabric客户端tick事件
+            if (ModKeys.isUseAbilityKeyPressed()) {
+                FabricTestMod.LOGGER.info("按键被成功按下");
+            }
             if (client.player != null && client.player.age % 100 == 0) {
                 FabricTestMod.LOGGER.info("Fabric客户端运行中...");
             }
         });
+        ModKeys.register();
     }
 }

@@ -2,6 +2,9 @@ package net.redstone233.tmb.neoforge;
 
 import net.redstone233.tmb.annotation.NeoForged;
 import net.redstone233.tmb.core.TestMod;
+import net.redstone233.tmb.neoforge.item.ModItems;
+import net.redstone233.tmb.neoforge.item.ModItemsGroups;
+import net.redstone233.tmb.neoforge.keys.ModKeys;
 import org.slf4j.Logger;
 
 import com.mojang.logging.LogUtils;
@@ -43,11 +46,14 @@ public class NeoForgedTestMod {
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
 
         TestMod.init();
+        ModItems.register(modEventBus);
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {
         // Some common setup code
         LOGGER.info("HELLO FROM COMMON SETUP");
+
+        ModKeys.init();
 
         if (Config.LOG_DIRT_BLOCK.getAsBoolean()) {
             LOGGER.info("DIRT BLOCK >> {}", BuiltInRegistries.BLOCK.getKey(Blocks.DIRT));
