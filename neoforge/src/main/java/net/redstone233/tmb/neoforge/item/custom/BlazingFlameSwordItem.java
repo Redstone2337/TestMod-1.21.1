@@ -11,6 +11,7 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.*;
+import net.minecraft.world.item.enchantment.EnchantmentInstance;
 import net.minecraft.world.level.Level;
 import net.redstone233.tmb.neoforge.keys.ModKeys;
 import org.jetbrains.annotations.NotNull;
@@ -43,11 +44,9 @@ public class BlazingFlameSwordItem extends SwordItem {
 //        stack.isDamaged(1,attacker, EquipmentSlot.OFFHAND);
 
         // 检查目标是否是生物实体，攻击者是否是玩家
-        if (target instanceof LivingEntity livingEntity && attacker instanceof Player player) {
+        if (target instanceof LivingEntity livingEntity && attacker instanceof Player player && !target.fireImmune()) {
             // 获取目标实体的燃烧状态
             livingEntity.isOnFire();
-            // 检查目标实体是否对火焰免疫
-            livingEntity.fireImmune();
             // 设置目标实体的剩余燃烧刻度（20刻 = 1秒，共2400刻 = 120秒）
             livingEntity.setRemainingFireTicks(2400);
             // 点燃目标实体，持续120秒
@@ -64,11 +63,17 @@ public class BlazingFlameSwordItem extends SwordItem {
 //            player.addStatusEffect(new StatusEffectInstance(StatusEffects.FIRE_RESISTANCE,1200,4,false,false,false));
             return true;
         } else {
+            target.addEffect(new MobEffectInstance(MobEffects.WITHER, 1200,4));
             return false;
         }
     }
 
-/**
+    @Override
+    public int getEnchantmentValue() {
+        return 15;
+    }
+
+    /**
  * 为物品添加悬停文本信息
  * 这个方法会在鼠标悬停在物品上时显示额外的描述信息
  *
@@ -83,7 +88,7 @@ public class BlazingFlameSwordItem extends SwordItem {
         tooltipComponents.add(Component.literal("§c§l火焰之剑").withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD));
     // 添加使用说明，包含按键提示
         tooltipComponents.add(Component.translatable("tooltip.ability_sword.display1").withStyle(ChatFormatting.WHITE)
-                .append(Component.translatable("key.use_ability.item",Component.translatable(ModKeys.USE_ABILITY_KEY.getTranslatedKeyMessage().getString())
+                .append(Component.translatable("key.use_ability.item",Component.translatable(ModKeys.USE_ABILITY_KEY.getDisplayName().getString())
                                 .withStyle(ChatFormatting.GOLD))
                         .append(Component.translatable("tooltip.ability_sword.display2").withStyle(ChatFormatting.WHITE))
                 ));

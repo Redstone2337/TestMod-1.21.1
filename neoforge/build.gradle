@@ -2,6 +2,7 @@ plugins {
     id 'java-library'
     id 'maven-publish'
     id 'net.neoforged.moddev' version '2.0.115'
+    id 'idea'
 }
 
 version = mod_version
@@ -16,6 +17,12 @@ java {
     withSourcesJar()
 }
 
+// 清理任务
+tasks.register('cleanModDevCache', Delete) {
+    delete 'build/moddev'
+}
+
+// NeoForge 配置
 neoForge {
     version = rootProject.neo_version
 
@@ -27,61 +34,54 @@ neoForge {
     runs {
         client {
             client()
-            systemProperty 'neoforge.enabledGameTestNamespaces', rootProject.mod_id
+            systemProperty 'neoforge.enabledGameTestNamespaces', "${mod_id}"
+            programArgument '--username=Dev'
         }
 
         server {
             server()
             programArgument '--nogui'
-            systemProperty 'neoforge.enabledGameTestNamespaces', rootProject.mod_id
+            systemProperty 'neoforge.enabledGameTestNamespaces', "${mod_id}"
         }
 
         gameTestServer {
             type = "gameTestServer"
-            systemProperty 'neoforge.enabledGameTestNamespaces', rootProject.mod_id
+            systemProperty 'neoforge.enabledGameTestNamespaces', "${mod_id}"
         }
 
-        data {
-            data()
-            // 使用官方模板的确切语法
-            programArguments.addAll '--mod', rootProject.mod_id, '--all', '--output', file('src/generated/resources/').getAbsolutePath(), '--existing', file('src/main/resources/').getAbsolutePath()
-        }
-
-        configureEach {
-            systemProperty 'forge.logging.markers', 'REGISTRIES'
-            logLevel = org.slf4j.event.Level.DEBUG
-        }
+        // 移除数据生成配置 - 使用 Fabric 生成的数据
     }
 
     mods {
-        "${rootProject.mod_id}" {
+        "${mod_id}" {
             sourceSet(sourceSets.main)
         }
     }
 }
 
 repositories {
-    // 添加其他仓库
     maven {
         name = 'NeoForge'
         url = 'https://maven.neoforged.net/releases'
     }
+    maven {
+        name = 'ParchmentMC'
+        url = 'https://maven.parchmentmc.org'
+    }
 }
 
-// 设置localRuntime配置
 configurations {
     runtimeClasspath.extendsFrom localRuntime
 }
 
 dependencies {
-    //implementation "net.neoforged:neoforge:${rootProject.neo_version}"
     implementation project(":common")
 }
 
-sourceSets.main.resources {
-    srcDir 'src/generated/resources'
-}
+// 源集配置 - 包含通用生成数据（由 Fabric 生成）
+sourceSets.main.resources.srcDir '../common/src/generated/resources'
 
+// 模组元数据生成
 tasks.register("generateModMetadata", ProcessResources) {
     var replaceProperties = [
             minecraft_version: rootProject.minecraft_version,
@@ -104,12 +104,7 @@ tasks.register("generateModMetadata", ProcessResources) {
 sourceSets.main.resources.srcDir tasks.generateModMetadata
 neoForge.ideSyncTask tasks.generateModMetadata
 
-// 处理资源文件 - 不再排除通用的mixins配置文件
-processResources {
-    // 不再排除通用的mixins配置文件，因为我们要在通用JAR中使用特定平台的配置
-    // 而是在构建通用JAR时进行智能合并
-}
-
+// 编译配置
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
@@ -118,11 +113,47 @@ tasks.named('compileJava') {
     dependsOn(':common:compileJava')
 }
 
+// 清理任务
+tasks.named('clean') {
+    dependsOn 'cleanModDevCache'
+}
+
 publishing {
     publications {
         mavenJava(MavenPublication) {
             artifactId = base.archivesName.get()
             from components.java
         }
+    }
+}
+
+// IDE 配置
+idea {
+    module {
+        downloadSources = true
+        downloadJavadoc = true
+        generatedSourceDirs += file('../common/src/generated/resources')
+    }
+}
+
+// 信息任务
+tasks.register('dataGenInfo') {
+    group = 'help'
+    description = 'Display data generation information'
+
+    doLast {
+        println """
+📊 数据生成信息:
+   当前配置: 使用 Fabric 数据生成器为双平台生成数据
+   数据位置: ../common/src/generated/resources
+   
+💡 使用方法:
+   ./gradlew generateData     # 运行 Fabric 数据生成
+   ./gradlew fabric:generateData  # 同上
+   
+📝 注意:
+   NeoForge 数据生成已禁用
+   所有平台共享 Fabric 生成的数据
+        """
     }
 }

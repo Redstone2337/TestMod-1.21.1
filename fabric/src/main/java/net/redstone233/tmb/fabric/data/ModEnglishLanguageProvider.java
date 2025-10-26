@@ -19,6 +19,7 @@ public class ModEnglishLanguageProvider extends FabricLanguageProvider {
         translationBuilder.add("key.tmb.use_ability", "Use Ability For Sword");
         translationBuilder.add("category.tmb", "Test Mod");
         translationBuilder.add("itemGroup.tmb.mod_items", "Test Mod | Customization Items");
+        translationBuilder.add("itemGroup.tmb.mod_weapons", "Test Mod | Customization Weapons");
 
         translationBuilder.add("tooltip.ability_sword.display1","Hold [");
         translationBuilder.add("key.use_ability.item","%s");

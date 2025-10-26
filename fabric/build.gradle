@@ -1,5 +1,3 @@
-import org.gradle.plugins.ide.eclipse.model.SourceFolder
-
 plugins {
     id 'fabric-loom' version "${loom_version}"
     id 'maven-publish'
@@ -14,78 +12,75 @@ base {
 }
 
 repositories {
-    // 添加其他仓库
+    maven {
+        name = 'TerraformersMC'
+        url = 'https://maven.terraformersmc.com/'
+    }
 }
 
+// Fabric Loom 配置
 loom {
     runs {
         client {
             client()
             configName = "Fabric Client"
             ideConfigGenerated(true)
-            // 完全移除任何运行目录配置，使用Loom默认设置
+            runDir = "run/client"
         }
+
         server {
             server()
             configName = "Fabric Server"
             ideConfigGenerated(true)
-            // 完全移除任何运行目录配置，使用Loom默认设置
+            runDir = "run/server"
+            programArgs '--nogui'
         }
-        // 添加数据生成运行配置
+
+        // 数据生成配置 - 输出到通用模块（为双平台生成数据）
         datagenClient {
             inherit client
             name "Data Generation"
             vmArg "-Dfabric-api.datagen"
-            vmArg "-Dfabric-api.datagen.output-dir=${file("src/main/generated")}"
+            vmArg "-Dfabric-api.datagen.output-dir=${file("../common/src/generated/resources")}"
             vmArg "-Dfabric-api.datagen.modid=${mod_id}"
-
-            // 设置运行目录
             runDir "build/datagen"
         }
     }
 
-    // 配置数据生成源集
     mods {
         "${mod_id}" {
             sourceSet sourceSets.main
         }
-        // 为数据生成创建独立的源集（可选）
-        datagen {
-            sourceSet sourceSets.main
-        }
     }
 
-    // 配置mixins
     mixin {
-        // 使用通用mixins配置文件
         defaultRefmapName = "${mod_id}.refmap.json"
     }
 }
 
-// 创建数据生成源集（如果需要）
+// 源集配置 - 包含通用生成数据
 sourceSets {
     main {
         resources {
-            srcDirs += [
-                    'src/main/generated'
-            ]
+            srcDirs += ['../common/src/generated/resources']
         }
     }
 }
 
 dependencies {
+    // Minecraft
     minecraft "com.mojang:minecraft:${rootProject.minecraft_version}"
     mappings "net.fabricmc:yarn:${rootProject.yarn_mappings}:v2"
 
+    // Fabric
     modImplementation "net.fabricmc:fabric-loader:${rootProject.fabric_loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${rootProject.fabric_api_version}"
 
+    // Common 模块
     implementation project(":common")
-
-    // 数据生成依赖（如果需要特定依赖）
-    // datagenImplementation "net.fabricmc.fabric-api:fabric-api:${rootProject.fabric_api_version}"
 }
 
+// 资源处理
 processResources {
     inputs.property "version", project.version
 
@@ -101,54 +96,116 @@ processResources {
                 'loader_version': rootProject.fabric_loader_version
         )
     }
-
-    // 不再排除通用的mixins配置文件，因为我们要在通用JAR中使用特定平台的配置
-    // 而是在构建通用JAR时进行智能合并
 }
 
-tasks.withType(JavaCompile).configureEach {
-    it.options.release = 21
-}
-
+// Java 配置
 java {
     withSourcesJar()
     sourceCompatibility = JavaVersion.VERSION_21
     targetCompatibility = JavaVersion.VERSION_21
 }
 
+tasks.withType(JavaCompile).configureEach {
+    it.options.release = 21
+}
+
 tasks.named('compileJava') {
     dependsOn(':common:compileJava')
 }
 
-// 数据生成相关任务
+// === 数据生成任务 ===
+
 tasks.register('generateData') {
     group = 'fabric'
-    description = 'Runs the Fabric data generator'
+    description = 'Runs the Fabric data generator (for both platforms)'
 
     dependsOn 'runDatagenClient'
 
+    doFirst {
+        println "♻️ 开始 Fabric 数据生成（为双平台生成数据）..."
+        println "📁 输出目录: ${file("../common/src/generated/resources")}"
+    }
+
     doLast {
-        println "数据生成完成！输出目录: ${file("src/main/generated")}"
+        def generatedDir = file("../common/src/generated/resources")
+        if (generatedDir.exists()) {
+            def fileCount = 0
+            def dirCount = 0
+
+            generatedDir.eachFileRecurse { file ->
+                if (file.isFile()) {
+                    fileCount++
+                } else if (file.isDirectory() && file != generatedDir) {
+                    dirCount++
+                }
+            }
+
+            println "✅ Fabric 数据生成完成！"
+            println "📊 生成文件数: ${fileCount}"
+            println "📁 生成目录数: ${dirCount}"
+            println "📂 输出目录: ${generatedDir}"
+
+            // 显示文件类型统计
+            if (fileCount > 0) {
+                def fileTypes = [:]
+                generatedDir.eachFileRecurse { file ->
+                    if (file.isFile()) {
+                        def ext = file.name.substring(file.name.lastIndexOf('.') + 1)
+                        fileTypes[ext] = (fileTypes[ext] ?: 0) + 1
+                    }
+                }
+
+                println "📄 生成的文件类型:"
+                fileTypes.each { ext, count ->
+                    println "   ${ext.toUpperCase()}: ${count} 个"
+                }
+
+                // 显示顶级目录结构
+                println "📁 目录结构:"
+                generatedDir.eachDir { dir ->
+                    def subFiles = []
+                    dir.eachFileRecurse { file -> if (file.isFile()) subFiles << file }
+                    println "   📂 ${dir.name}/ (${subFiles.size()} 个文件)"
+                }
+            }
+        } else {
+            println "⚠️ 警告: 数据生成目录不存在，可能生成失败"
+        }
     }
 }
 
-// 清理生成的数据
 tasks.register('cleanGeneratedData', Delete) {
     group = 'fabric'
     description = 'Cleans generated data files'
 
-    delete file("src/main/generated")
+    delete file("../common/src/generated/resources")
+
+    doLast {
+        println "✅ 已清理 Fabric 生成的数据"
+    }
 }
 
-// 在清理任务中包含生成的数据清理
+// 创建数据生成目录的任务
+tasks.register('createDataGenDirs') {
+    doLast {
+        def commonGenDir = file("../common/src/generated/resources")
+
+        if (!commonGenDir.exists()) {
+            commonGenDir.mkdirs()
+            println "✅ 创建通用数据生成目录: ${commonGenDir}"
+        }
+    }
+}
+
+// 数据生成前创建目录
+tasks.named('runDatagenClient') {
+    dependsOn 'createDataGenDirs'
+}
+
+// 清理任务
 tasks.named('clean') {
     dependsOn 'cleanGeneratedData'
 }
-
-// 在构建前确保数据已生成（可选）
-// tasks.named('build') {
-//     dependsOn 'generateData'
-// }
 
 publishing {
     publications {
@@ -159,22 +216,11 @@ publishing {
     }
 }
 
-// 配置IDE
+// IDE 配置
 idea {
     module {
-        // 将生成的目录标记为生成的源根
-        generatedSourceDirs += file('src/main/generated')
-    }
-}
-
-eclipse {
-    classpath {
-        // 将生成的目录包含在类路径中
-        file {
-            whenMerged {
-                def generated = new SourceFolder('src/main/generated', null)
-                entries += generated
-            }
-        }
+        downloadSources = true
+        downloadJavadoc = true
+        generatedSourceDirs += file('../common/src/generated/resources')
     }
 }

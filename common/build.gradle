@@ -1,5 +1,5 @@
 plugins {
-    id 'java'
+    id 'java-library'
     id 'maven-publish'
 }
 
@@ -7,20 +7,20 @@ base {
     archivesName = "${rootProject.archives_name}-common"
 }
 
-dependencies {
-    /*
-    implementation "com.mojang:minecraft:${rootProject.minecraft_version}"
-    mappings "net.fabricmc:yarn:${rootProject.yarn_mappings}:v2"
-    */
-
-    implementation "org.slf4j:slf4j-api:2.0.9"
-
-    // Fabric Loader for Environment annotations
-    //implementation "net.fabricmc:fabric-loader:${rootProject.fabric_loader_version}"
-
-    implementation "net.neoforged:neoforge:${rootProject.neo_version}"
+// 添加生成资源目录（Fabric 数据生成输出到这里）
+sourceSets.main.resources {
+    srcDir 'src/generated/resources'
 }
 
+dependencies {
+    // 跨平台兼容依赖
+    compileOnly "org.slf4j:slf4j-api:2.0.9"
+
+    // NeoForge 依赖（用于编译时）
+    compileOnly "net.neoforged:neoforge:${rootProject.neo_version}"
+}
+
+// 处理资源文件
 processResources {
     inputs.property "version", project.version
 
@@ -31,14 +31,29 @@ processResources {
                 'mod_name': rootProject.mod_name,
                 'mod_license': rootProject.mod_license,
                 'mod_authors': rootProject.mod_authors,
-                'mod_description': rootProject.mod_description
+                'mod_description': rootProject.mod_description,
+                'minecraft_version': rootProject.minecraft_version
         )
     }
 
-    // 确保通用的mixins配置文件被包含
+    // 包含通用配置文件
     include "${rootProject.mod_id}.mixins.json"
 }
 
+// 确保生成目录在清理时也被清理
+tasks.register('cleanGeneratedData', Delete) {
+    delete 'src/generated/resources'
+
+    doLast {
+        println "✅ 已清理 Common 生成数据"
+    }
+}
+
+tasks.named('clean') {
+    dependsOn 'cleanGeneratedData'
+}
+
+// 源码 JAR
 tasks.register('commonSourcesJar', Jar) {
     dependsOn classes
     archiveBaseName = "${rootProject.archives_name}-common"
@@ -53,5 +68,14 @@ publishing {
             from components.java
             artifact commonSourcesJar
         }
+    }
+}
+
+// IDE 配置
+idea {
+    module {
+        downloadSources = true
+        downloadJavadoc = true
+        generatedSourceDirs += file('src/generated/resources')
     }
 }

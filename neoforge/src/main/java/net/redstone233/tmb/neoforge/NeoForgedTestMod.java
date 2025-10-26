@@ -47,6 +47,7 @@ public class NeoForgedTestMod {
 
         TestMod.init();
         ModItems.register(modEventBus);
+        ModItemsGroups.register(modEventBus);
     }
 
     private void commonSetup(FMLCommonSetupEvent event) {
