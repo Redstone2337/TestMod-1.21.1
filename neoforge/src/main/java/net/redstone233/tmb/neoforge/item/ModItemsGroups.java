@@ -30,6 +30,7 @@ public class ModItemsGroups {
                     .title(Component.translatable("itemGroup.tmb.mod_weapons"))
                     .displayItems((parameters, output) -> {
                         output.accept(ModItems.BLAZING_FLAME_SWORD);
+                        output.accept(ModItems.ICE_FREEZE_SWORD);
                     }).withTabsBefore(ResourceLocation.fromNamespaceAndPath(TestMod.MOD_ID, "mod_items"))
                     .build());
 
