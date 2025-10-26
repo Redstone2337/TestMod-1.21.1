@@ -10,7 +10,7 @@ import org.slf4j.LoggerFactory;
  * 多平台模组主类
  */
 public class TestMod {
-    public static final String MOD_ID = "assets/tmb";
+    public static final String MOD_ID = "tmb";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
     
     private static TestMod instance;
